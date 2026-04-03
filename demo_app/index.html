@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SwiftShop — Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111111;
+      --border: #222;
+      --accent: #e8ff47;
+      --text: #f0f0f0;
+      --muted: #666;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(232,255,71,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(232,255,71,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 420px;
+      padding: 24px;
+      position: relative;
+      z-index: 1;
+      animation: fadeUp 0.6s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .brand {
+      font-family: 'Syne', sans-serif;
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -1px;
+      margin-bottom: 8px;
+    }
+
+    .brand span { color: var(--accent); }
+
+    .tagline {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-bottom: 40px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+    }
+
+    .card h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 24px;
+    }
+
+    .field {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+
+    input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+
+    input:focus { border-color: var(--accent); }
+    input::placeholder { color: var(--muted); }
+
+    .error-msg {
+      display: none;
+      color: #ff5f5f;
+      font-size: 0.82rem;
+      margin-top: 6px;
+    }
+
+    .btn {
+      width: 100%;
+      margin-top: 8px;
+      background: var(--accent);
+      color: #0a0a0a;
+      border: none;
+      border-radius: 8px;
+      padding: 14px;
+      font-family: 'Syne', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    .btn:hover { opacity: 0.9; }
+    .btn:active { transform: scale(0.98); }
+
+    .hint {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .hint code {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 0.75rem;
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="container">
+    <div class="brand">Swift<span>Shop</span></div>
+    <p class="tagline">Demo app for QAgent testing</p>
+
+    <div class="card">
+      <h2>Sign in</h2>
+
+      <div class="field">
+        <label>Username</label>
+        <input id="username" type="text" placeholder="Enter username" autocomplete="off"/>
+      </div>
+
+      <div class="field">
+        <label>Password</label>
+        <input id="password" type="password" placeholder="Enter password"/>
+        <p class="error-msg" id="error-msg">Invalid username or password.</p>
+      </div>
+
+      <button class="btn" id="login-btn" onclick="handleLogin()">Login</button>
+
+      <div class="hint">
+        <p>Test credentials:</p>
+        <p style="margin-top:6px"><code>standard_user</code> / <code>secret_sauce</code></p>
+        <p style="margin-top:4px"><code>locked_user</code> / <code>secret_sauce</code> → blocked</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const USERS = {
+      standard_user: { password: "secret_sauce", locked: false },
+      locked_user:   { password: "secret_sauce", locked: true },
+    };
+
+    function handleLogin() {
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const errorMsg = document.getElementById("error-msg");
+
+      errorMsg.style.display = "none";
+
+      if (!username || !password) {
+        errorMsg.textContent = "Username and password are required.";
+        errorMsg.style.display = "block";
+        return;
+      }
+
+      const user = USERS[username];
+
+      if (!user || user.password !== password) {
+        errorMsg.textContent = "Invalid username or password.";
+        errorMsg.style.display = "block";
+        return;
+      }
+
+      if (user.locked) {
+        errorMsg.textContent = "This account has been locked.";
+        errorMsg.style.display = "block";
+        return;
+      }
+
+      localStorage.setItem("auth_user", username);
+      window.location.href = "products.html";
+    }
+
+    document.addEventListener("keydown", e => {
+      if (e.key === "Enter") handleLogin();
+    });
+  </script>
+</body>
+</html>

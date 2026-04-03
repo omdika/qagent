@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SwiftShop — Cart</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0a; --surface: #111111; --border: #222;
+      --accent: #e8ff47; --text: #f0f0f0; --muted: #666;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 32px; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; background: rgba(10,10,10,0.9);
+      backdrop-filter: blur(12px); z-index: 10;
+    }
+    .brand { font-family: 'Syne', sans-serif; font-size: 1.4rem; font-weight: 800; }
+    .brand span { color: var(--accent); }
+    .back-btn {
+      background: none; border: 1px solid var(--border); border-radius: 8px;
+      padding: 8px 14px; color: var(--muted); font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem; cursor: pointer; text-decoration: none;
+    }
+    .back-btn:hover { color: var(--text); border-color: #444; }
+
+    main { max-width: 700px; margin: 0 auto; padding: 40px 24px; }
+    h1 { font-family: 'Syne', sans-serif; font-size: 1.8rem; font-weight: 800; margin-bottom: 24px; }
+
+    .cart-item {
+      display: flex; align-items: center; gap: 16px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px; margin-bottom: 12px;
+      animation: fadeUp 0.3s ease both;
+    }
+    @keyframes fadeUp { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+    .item-emoji { font-size: 2rem; width: 52px; text-align: center; }
+    .item-info { flex: 1; }
+    .item-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.95rem; }
+    .item-cat { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+    .item-price { color: var(--accent); font-weight: 500; }
+    .remove-btn {
+      background: none; border: 1px solid var(--border); border-radius: 8px;
+      padding: 6px 10px; color: var(--muted); cursor: pointer; font-size: 0.8rem;
+      font-family: 'DM Sans', sans-serif; transition: all 0.2s;
+    }
+    .remove-btn:hover { border-color: #ff5f5f; color: #ff5f5f; }
+
+    .summary {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 24px; margin-top: 24px;
+    }
+    .summary-row {
+      display: flex; justify-content: space-between;
+      padding: 8px 0; font-size: 0.9rem; color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    .summary-total {
+      display: flex; justify-content: space-between;
+      padding: 16px 0 0; font-family: 'Syne', sans-serif;
+      font-size: 1.1rem; font-weight: 700;
+    }
+    .summary-total span:last-child { color: var(--accent); }
+
+    .checkout-btn {
+      width: 100%; margin-top: 16px; background: var(--accent);
+      color: #0a0a0a; border: none; border-radius: 10px; padding: 14px;
+      font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700;
+      cursor: pointer; transition: opacity 0.2s;
+    }
+    .checkout-btn:hover { opacity: 0.9; }
+
+    .empty-state { text-align: center; padding: 80px 24px; color: var(--muted); }
+    .empty-state .big { font-size: 3rem; margin-bottom: 12px; }
+    .empty-state a {
+      display: inline-block; margin-top: 20px; background: var(--accent);
+      color: #0a0a0a; text-decoration: none; border-radius: 8px;
+      padding: 10px 20px; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="brand">Swift<span>Shop</span></div>
+    <a href="products.html" class="back-btn">← Back to Products</a>
+  </nav>
+
+  <main>
+    <h1>Your Cart</h1>
+    <div id="cart-content"></div>
+  </main>
+
+  <script>
+    if (!localStorage.getItem("auth_user")) window.location.href = "index.html";
+
+    let cart = JSON.parse(localStorage.getItem("cart") || "[]");
+
+    function removeItem(index) {
+      cart.splice(index, 1);
+      localStorage.setItem("cart", JSON.stringify(cart));
+      render();
+    }
+
+    function checkout() {
+      localStorage.removeItem("cart");
+      window.location.href = "checkout.html";
+    }
+
+    function render() {
+      const el = document.getElementById("cart-content");
+
+      if (cart.length === 0) {
+        el.innerHTML = `<div class="empty-state">
+          <div class="big">🛒</div>
+          <p>Your cart is empty</p>
+          <a href="products.html">Browse Products</a>
+        </div>`;
+        return;
+      }
+
+      const total = cart.reduce((sum, p) => sum + p.price, 0);
+      const shipping = 25000;
+
+      el.innerHTML = cart.map((p, i) => `
+        <div class="cart-item">
+          <div class="item-emoji">${p.emoji}</div>
+          <div class="item-info">
+            <div class="item-name">${p.name}</div>
+            <div class="item-cat">${p.category}</div>
+          </div>
+          <div class="item-price">Rp ${p.price.toLocaleString('id-ID')}</div>
+          <button class="remove-btn" onclick="removeItem(${i})">Remove</button>
+        </div>
+      `).join("") + `
+        <div class="summary">
+          <div class="summary-row"><span>Subtotal (${cart.length} items)</span><span>Rp ${total.toLocaleString('id-ID')}</span></div>
+          <div class="summary-row"><span>Shipping</span><span>Rp ${shipping.toLocaleString('id-ID')}</span></div>
+          <div class="summary-total">
+            <span>Total</span>
+            <span>Rp ${(total + shipping).toLocaleString('id-ID')}</span>
+          </div>
+          <button class="checkout-btn" id="checkout-btn" onclick="checkout()">Proceed to Checkout</button>
+        </div>
+      `;
+    }
+
+    render();
+  </script>
+</body>
+</html>
