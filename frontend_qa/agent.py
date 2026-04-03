@@ -218,7 +218,7 @@ def run_frontend_qa(user_story: str):
     print(f"🌐 App URL: {BASE_URL}")
     print(f"{'='*60}\n")
 
-    browser = BrowserTools(headless=False)
+    browser = BrowserTools(headless=True)
 
     # ✅ TAMBAH INI: discover dulu sebelum generate
     print("🔍 Discovering pages...")
