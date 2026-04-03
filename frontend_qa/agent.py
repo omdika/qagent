@@ -269,6 +269,20 @@ def run_frontend_qa(user_story: str):
     run_reporter(total_scenarios=len(scenarios))
 
 
+
+def get_user_story_from_pr():
+    pr_title = os.getenv("PR_TITLE", "")
+    pr_body = os.getenv("PR_BODY", "")
+    
+    # Gabungkan title + body sebagai user story
+    user_story = f"""
+    JUDUL PR: {pr_title}
+    
+    DESKRIPSI:
+    {pr_body}
+    """
+    return user_story
+
 # ============================================================
 # ENTRY POINT
 # ============================================================
@@ -281,7 +295,7 @@ valid credentials so I can browse and purchase products.
 If login fails, I should see a clear error message.
 
 After login, I want to:
-- Browse products and filter by category
+- Browse products and filter by category 
 - Add products to cart
 - View cart and see correct total
 - Complete checkout and see order confirmation
@@ -292,4 +306,5 @@ Invalid credentials: username=wrong_user, password=wrong_pass
 Locked user: username=locked_user, password=secret_sauce
 """.format(BASE_URL=BASE_URL)
 
-    run_frontend_qa(user_story)
+    run_frontend_qa(get_user_story_from_pr())
+    # run_frontend_qa(user_story)

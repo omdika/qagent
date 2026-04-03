@@ -1,0 +1,36 @@
+name: QA Agent
+
+on:
+  pull_request:
+    types: [opened, synchronize]  # trigger saat PR dibuat atau diupdate
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright
+        run: playwright install chromium
+
+      - name: Create .env file
+        run: |
+          echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" > .env
+          echo "APP_URL=${{ secrets.APP_URL }}" >> .env
+
+      - name: Run QA Agent
+        run: python frontend_qa/agent.py
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ secrets.TOKEN_GITHUB }} 
