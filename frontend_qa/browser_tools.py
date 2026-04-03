@@ -76,3 +76,56 @@ class BrowserTools:
     def close(self):
         self.browser.close()
         self.playwright.stop()
+
+    def discover_page(self):
+        """Scan halaman dan return semua elemen yang relevan"""
+        
+        # Ambil semua interactive elements beserta selector & teksnya
+        elements = self.page.evaluate("""() => {
+            const result = { inputs: [], buttons: [], links: [], texts: [] };
+
+            // Input fields
+            document.querySelectorAll('input, textarea, select').forEach(el => {
+                result.inputs.push({
+                    tag: el.tagName.toLowerCase(),
+                    id: el.id || null,
+                    name: el.name || null,
+                    type: el.type || null,
+                    placeholder: el.placeholder || null,
+                    selector: el.id ? '#' + el.id : (el.name ? `[name="${el.name}"]` : el.tagName.toLowerCase())
+                });
+            });
+
+            // Buttons
+            document.querySelectorAll('button, [role="button"], input[type="submit"]').forEach(el => {
+                result.buttons.push({
+                    text: el.innerText?.trim() || el.value || null,
+                    id: el.id || null,
+                    selector: el.id ? '#' + el.id : 'button'
+                });
+            });
+
+            // Links
+            document.querySelectorAll('a[href]').forEach(el => {
+                result.links.push({
+                    text: el.innerText?.trim(),
+                    href: el.href,
+                    id: el.id || null
+                });
+            });
+
+            // Visible text (headings & labels)
+            document.querySelectorAll('h1,h2,h3,label,p').forEach(el => {
+                const text = el.innerText?.trim();
+                if (text && text.length < 100) result.texts.push(text);
+            });
+
+            return result;
+        }""")
+
+        screenshot_path = self.screenshot("discovery")
+        return {
+            "url": self.get_url(),
+            "elements": elements,
+            "screenshot": screenshot_path
+        }

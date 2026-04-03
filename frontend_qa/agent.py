@@ -31,21 +31,42 @@ all_results = []
 # STEP 1: GENERATE TEST SCENARIOS
 # ============================================================
 
-def generate_test_scenarios(user_story: str) -> list:
+def discover_all_pages(browser: BrowserTools, base_url: str) -> dict:
+    """Kunjungi semua halaman utama dan scan elemennya"""
+    pages_info = {}
+
+    pages = [
+        ("login", base_url + "/index.html"),
+        ("products", base_url + "/products.html"),
+        ("cart", base_url + "/cart.html"),
+    ]
+
+    for name, url in pages:
+        print(f"   🔍 Scanning {name}: {url}")
+        browser.navigate(url)
+        browser.wait(1500)
+        info = browser.discover_page()
+        pages_info[name] = info
+        print(f"      → {len(info['elements']['inputs'])} inputs, "
+              f"{len(info['elements']['buttons'])} buttons")
+
+    return pages_info
+
+
+def generate_test_scenarios(user_story: str, pages_info: dict) -> list:
     prompt = f"""
-You are a senior QA Engineer. Read the user story below and generate test scenarios.
+You are a senior QA Engineer. You have already scanned the app pages.
 
 USER STORY:
 {user_story}
 
-BASE URL: {BASE_URL}
+DISCOVERED PAGE ELEMENTS:
+{json.dumps(pages_info, indent=2)}
 
-Generate 4-6 test scenarios covering:
-- Happy path (normal flow)
-- Edge cases (empty input, invalid data)
-- Negative cases (should fail gracefully)
+Generate 4-6 test scenarios using ONLY the real selectors found above.
+Do not invent selectors — use exactly what was discovered.
 
-Available actions for each step:
+Available actions:
 - navigate: <url>
 - click: <css_selector>
 - type: <css_selector> | <text>
@@ -56,20 +77,14 @@ Available actions for each step:
 - wait: <ms>
 - screenshot: <filename>
 
-Respond ONLY with a JSON array, no markdown, no explanation:
+Respond ONLY with JSON array, no markdown:
 [
   {{
     "id": "TC001",
-    "name": "short test case name",
+    "name": "...",
     "priority": "high/medium/low",
-    "steps": [
-      "navigate: https://...",
-      "type: #username | standard_user",
-      "click: #login-btn",
-      "assert_url_contains: products",
-      "screenshot: tc001_result"
-    ],
-    "expected": "what should happen at the end"
+    "steps": ["navigate: ...", "type: #real-selector | value", ...],
+    "expected": "..."
   }}
 ]
 """
@@ -81,7 +96,6 @@ Respond ONLY with a JSON array, no markdown, no explanation:
     text = response.choices[0].message.content.strip()
     text = text.replace("```json", "").replace("```", "").strip()
     return json.loads(text)
-
 
 # ============================================================
 # STEP 2: EXECUTE EACH STEP
@@ -204,12 +218,18 @@ def run_frontend_qa(user_story: str):
     print(f"🌐 App URL: {BASE_URL}")
     print(f"{'='*60}\n")
 
-    # Step 1: generate
+    browser = BrowserTools(headless=False)
+
+    # ✅ TAMBAH INI: discover dulu sebelum generate
+    print("🔍 Discovering pages...")
+    pages_info = discover_all_pages(browser, BASE_URL)
+    print(f"   → {len(pages_info)} pages scanned\n")
+
+    # Generate pakai info halaman yang nyata
     print("📝 Generating test scenarios...")
-    scenarios = generate_test_scenarios(user_story)
+    scenarios = generate_test_scenarios(user_story, pages_info)
     print(f"   → {len(scenarios)} scenarios generated\n")
 
-    browser = BrowserTools(headless=False)
 
     for scenario in scenarios:
         print(f"{'─'*60}")
