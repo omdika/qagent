@@ -1,5 +1,5 @@
 """
-QAgent — Frontend QA Agent for SwiftShop
+QAgent — Frontend QA Agent for SwiftShop (Gemini version)
 Reads user story → generates test cases → executes → reports
 """
 
@@ -8,15 +8,16 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
-from groq import Groq
+import google.generativeai as genai
 from browser_tools import BrowserTools
+from mcp import MCP
 from reporter import run_reporter
 import json
 import time
 
 load_dotenv()
 
-groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 # ============================================================
 # CONFIG
@@ -26,6 +27,53 @@ BASE_URL = os.getenv("APP_URL", "http://localhost:3000")
 
 bugs = []
 all_results = []
+
+# ============================================================
+# STEP 0: EXTRACT SELECTORS FROM SOURCE CODE
+# ============================================================
+
+def extract_selectors_from_source() -> dict:
+    """Read demo_app source files and let AI extract selectors"""
+    demo_app_path = os.path.join(os.path.dirname(__file__), "../demo_app")
+    source_content = {}
+    
+    for filename in os.listdir(demo_app_path):
+        if filename.endswith((".html", ".js", ".jsx", ".tsx")):
+            filepath = os.path.join(demo_app_path, filename)
+            try:
+                with open(filepath, "r", encoding="utf-8") as f:
+                    content = f.read()
+                    # Limit to first 1500 chars per file to avoid token/timeout limits
+                    source_content[filename] = content[:1500]
+            except:
+                pass
+    
+    if not source_content:
+        print("   ⚠️  No source files found in demo_app")
+        return {}
+    
+    # Simple, short prompt to avoid timeout
+    prompt = f"""Extract all clickable/input selectors from these files.
+Return JSON only: {{"page": {{"element": "selector"}}}}
+
+FILES:
+{json.dumps(source_content, indent=0)}
+"""
+    
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(prompt, generation_config=genai.types.GenerationConfig(temperature=0.1))
+        text = response.text.strip()
+        text = text.replace("```json", "").replace("```", "").strip()
+        if text:
+            selectors = json.loads(text)
+            print(f"   ✓ Extracted selectors from {len(source_content)} files")
+            return selectors
+        return {}
+    except Exception as e:
+        print(f"   ⚠️  Failed to extract selectors: {e}")
+        return {}
+
 
 # ============================================================
 # STEP 1: GENERATE TEST SCENARIOS
@@ -53,49 +101,30 @@ def discover_all_pages(browser: BrowserTools, base_url: str) -> dict:
     return pages_info
 
 
-def generate_test_scenarios(user_story: str, pages_info: dict) -> list:
-    prompt = f"""
-You are a senior QA Engineer. You have already scanned the app pages.
+def generate_test_scenarios(user_story: str, pages_info: dict, source_selectors: dict) -> list:
+    # Merge discovered + source selectors
+    all_selectors = {"discovered": pages_info}
+    if source_selectors:
+        all_selectors["from_source"] = source_selectors
+    
+    prompt = f"""QA: Generate 4-6 test scenarios.
 
-USER STORY:
-{user_story}
+STORY: {user_story}
 
-DISCOVERED PAGE ELEMENTS:
-{json.dumps(pages_info, indent=2)}
+AVAILABLE SELECTORS:
+{json.dumps(all_selectors, indent=1)}
 
-Generate 1 test scenarios using ONLY the real selectors found above.
-Do not invent selectors — use exactly what was discovered.
+Generate using ONLY real selectors above. Actions: navigate, click, type, assert_visible, assert_text, assert_url_contains.
 
-Available actions:
-- navigate: <url>
-- click: <css_selector>
-- type: <css_selector> | <text>
-- assert_visible: <css_selector>
-- assert_text: <css_selector> | <expected_text>
-- assert_url_contains: <path>
-- clear_storage
-- wait: <ms>
-- screenshot: <filename>
-
-Respond ONLY with JSON array, no markdown:
-[
-  {{
-    "id": "TC001",
-    "name": "...",
-    "priority": "high/medium/low",
-    "steps": ["navigate: ...", "type: #real-selector | value", ...],
-    "expected": "..."
-  }}
-]
+JSON only:
+[{{"id":"TC001","name":"...","priority":"high/medium/low","steps":["navigate: ..."],"expected":"..."}}]
 """
-    response = groq_client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.2
-    )
-    text = response.choices[0].message.content.strip()
+    model = genai.GenerativeModel('gemini-3-flash-preview')
+    response = model.generate_content(prompt, generation_config=genai.types.GenerationConfig(temperature=0.2))
+    text = response.text.strip()
     text = text.replace("```json", "").replace("```", "").strip()
     return json.loads(text)
+
 
 # ============================================================
 # STEP 2: EXECUTE EACH STEP
@@ -172,35 +201,31 @@ def execute_step(step: str, browser: BrowserTools) -> dict:
 # ============================================================
 
 def get_verdict(scenario: dict, step_results: list, console_errors: list) -> dict:
-    prompt = f"""
-You are a QA Engineer. Evaluate the test case execution below.
+    prompt = f"""QA: PASS or FAIL?
+Test: {scenario['name']}
+Expected: {scenario['expected']}
+Results: {json.dumps([{"step":s['step'],"status":s['status']} for s in step_results])}
+Errors: {console_errors or "none"}
 
-TEST CASE: {scenario['name']}
-EXPECTED: {scenario['expected']}
-
-STEP RESULTS:
-{json.dumps(step_results, indent=2)}
-
-CONSOLE ERRORS: {console_errors if console_errors else "none"}
-
-Based on the results, did this test PASS or FAIL?
-
-Respond ONLY with JSON, no markdown:
-{{
-  "verdict": "pass" or "fail",
-  "reason": "one sentence explanation",
-  "bug_title": "short bug title if fail, empty if pass",
-  "severity": "critical/high/medium/low if fail, empty if pass"
-}}
+JSON: {{"verdict":"pass/fail","reason":"...","bug_title":"...","severity":"..."}}
 """
-    response = groq_client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.1
-    )
-    text = response.choices[0].message.content.strip()
+    model = genai.GenerativeModel('gemini-3-flash-preview')
+    response = model.generate_content(prompt, generation_config=genai.types.GenerationConfig(temperature=0.1))
+    text = response.text.strip()
     text = text.replace("```json", "").replace("```", "").strip()
-    return json.loads(text)
+    try:
+        if text == "":
+            raise ValueError("empty AI response")
+        return json.loads(text)
+    except Exception as e:
+        print(f"   ⚠️  get_verdict JSON parse failed: {e}")
+        print(f"   raw response: {text}")
+        return {
+            "verdict": "fail",
+            "reason": "Unable to parse AI verdict; fallback fail",
+            "bug_title": "Invalid AI verdict response",
+            "severity": "low"
+        }
 
 
 # ============================================================
@@ -213,29 +238,31 @@ def run_frontend_qa(user_story: str):
     all_results = []
 
     print(f"\n{'='*60}")
-    print(f"🤖 QAgent — Frontend QA")
+    print(f"🤖 QAgent — Frontend QA (Gemini)")
     print(f"📋 User Story: {user_story[:80]}...")
     print(f"🌐 App URL: {BASE_URL}")
     print(f"{'='*60}\n")
+    
+    browser = BrowserTools(headless=True)
 
-    browser = BrowserTools(headless=False)
+    mcp = MCP()
+    browser = BrowserTools(headless=True)
 
-    # ✅ TAMBAH INI: discover dulu sebelum generate
+    print("📖 Analyzing demo_app source code...")
+    source_selectors = extract_selectors_from_source()
+
     print("🔍 Discovering pages...")
-    pages_info = discover_all_pages(browser, BASE_URL)
+    pages_info = mcp.discover_pages(browser, BASE_URL)
     print(f"   → {len(pages_info)} pages scanned\n")
 
-    # Generate pakai info halaman yang nyata
+    # Generate pakai semua selector
     print("📝 Generating test scenarios...")
-    scenarios = generate_test_scenarios(user_story, pages_info)
+    scenarios = generate_test_scenarios(user_story, pages_info, source_selectors)
     print(f"   → {len(scenarios)} scenarios generated\n")
 
-
     # Simpan test script / scenario ke reports (buat analisis & rerun manual)
-    os.makedirs("reports", exist_ok=True)
-    with open("reports/test_scenarios.json", "w") as f:
-        json.dump(scenarios, f, indent=2, ensure_ascii=False)
-    print("📄 Saved generated test scenarios to reports/test_scenarios.json")
+    mcp.save_report("test_scenarios.json", scenarios)
+    print("📄 Saved generated test scenarios to reports/test_scenarios.json\n")
 
     for scenario in scenarios:
         print(f"{'─'*60}")
@@ -292,9 +319,7 @@ def run_frontend_qa(user_story: str):
     browser.close()
 
     # Save bugs
-    os.makedirs("reports", exist_ok=True)
-    with open("reports/bug_report.json", "w") as f:
-        json.dump(bugs, f, indent=2, ensure_ascii=False)
+    mcp.save_report("bug_report.json", bugs)
 
     # Report
     run_reporter(total_scenarios=len(scenarios))
@@ -321,12 +346,20 @@ def get_user_story_from_pr():
 if __name__ == "__main__":
 
     user_story = """
-## Judul: Login user valid ke SwiftShop
-## Deskripsi:
-"Sebagai pengguna terdaftar, saya ingin masuk dengan username/password valid, agar saya dapat melihat halaman produk."
-## Kriteria terima:
-- username = standard_user, password = secret_sauce
-- setelah klik login, harus redirect ke /products.html
+## 🧪 QA User Story
+
+As a user, I want to filter products by category (Electronics, Clothing, Accessories)
+so I can find relevant products faster.
+
+
+## ✅ Expected Behavior
+- Clicking "Electronics" filter shows only electronics products
+- Clicking "All" resets to show all products
+- Multiple filters can be clicked sequentially
+- Product count updates after filter applied
+
+## ❌ Should Fail Gracefully
+- Clicking filter with no matching products shows empty state message
 
 ## 🔑 Credentials
 username: standard_user

@@ -1,0 +1,16 @@
+[
+  {
+    "id": "TC001",
+    "name": "Login with valid credentials",
+    "priority": "high",
+    "steps": [
+      "navigate: https://qagent-iota.vercel.app/index.html",
+      "type: #username | standard_user",
+      "type: #password | secret_sauce",
+      "click: #login-btn",
+      "wait: 1000",
+      "assert_url_contains: /products.html"
+    ],
+    "expected": "User is redirected to products page"
+  }
+]

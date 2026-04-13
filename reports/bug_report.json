@@ -1,114 +1,22 @@
 [
   {
     "bug_id": "BUG-001",
-    "title": "Timeouts and 404 Error on Login and Checkout",
-    "severity": "critical",
+    "title": "Resource Loading Error",
+    "severity": "high",
     "test_case": "TC001",
     "steps_to_reproduce": [
-      "navigate: https://qagent-iota.vercel.app/",
-      "type: #user-name | standard_user",
+      "navigate: https://qagent-iota.vercel.app/index.html",
+      "type: #username | standard_user",
       "type: #password | secret_sauce",
-      "click: #login-button",
-      "assert_url_contains: inventory",
-      "click: #add-to-cart-sauce-labs-backpack",
-      "click: #shopping-cart-container",
-      "assert_text: #cart-quantity | 1",
-      "click: #checkout",
-      "type: #first-name | John",
-      "type: #last-name | Doe",
-      "type: #postal-code | 12345",
-      "click: #continue",
-      "assert_text: #checkout-complete | THANK YOU FOR YOUR ORDER"
+      "click: #login-btn",
+      "wait: 1000",
+      "assert_url_contains: /products.html"
     ],
-    "expected": "User is logged in and can complete checkout",
-    "actual": "The test failed due to multiple timeouts and a 404 error, indicating issues with page loading and element interaction",
+    "expected": "User is redirected to products page",
+    "actual": "The test failed due to a console error indicating a resource failed to load with a 404 status",
+    "console_errors": [
+      "Failed to load resource: the server responded with a status of 404 ()"
+    ],
     "screenshot": "reports/screenshots/tc001_result.png"
-  },
-  {
-    "bug_id": "BUG-002",
-    "title": "Element Locator Timeout",
-    "severity": "high",
-    "test_case": "TC002",
-    "steps_to_reproduce": [
-      "navigate: https://qagent-iota.vercel.app/",
-      "type: #user-name | wrong_user",
-      "type: #password | wrong_pass",
-      "click: #login-button",
-      "assert_text: #login-button | Epic sadface: Username and password do not match any user in this service"
-    ],
-    "expected": "Error message is displayed for invalid credentials",
-    "actual": "The test failed due to timeouts and inability to locate elements on the page, resulting in an assertion failure",
-    "screenshot": "reports/screenshots/tc002_result.png"
-  },
-  {
-    "bug_id": "BUG-003",
-    "title": "Timeout Error on Locked User Test",
-    "severity": "high",
-    "test_case": "TC003",
-    "steps_to_reproduce": [
-      "navigate: https://qagent-iota.vercel.app/",
-      "type: #user-name | locked_user",
-      "type: #password | secret_sauce",
-      "click: #login-button",
-      "assert_text: #login-button | Epic sadface: Sorry, this user has been locked out."
-    ],
-    "expected": "Error message is displayed for locked user",
-    "actual": "The test failed due to a timeout error when trying to locate and interact with elements on the page, resulting in a failed assertion",
-    "screenshot": "reports/screenshots/tc003_result.png"
-  },
-  {
-    "bug_id": "BUG-004",
-    "title": "Login Button Timeout Error",
-    "severity": "high",
-    "test_case": "TC004",
-    "steps_to_reproduce": [
-      "navigate: https://qagent-iota.vercel.app/",
-      "click: #login-button",
-      "assert_text: #login-button | Epic sadface: Username is required"
-    ],
-    "expected": "Error message is displayed for empty input",
-    "actual": "The test failed due to a timeout error when attempting to click and assert the login button",
-    "screenshot": "reports/screenshots/tc004_result.png"
-  },
-  {
-    "bug_id": "BUG-005",
-    "title": "Timeouts and failed assertions in filter by category test",
-    "severity": "critical",
-    "test_case": "TC005",
-    "steps_to_reproduce": [
-      "navigate: https://qagent-iota.vercel.app/",
-      "type: #user-name | standard_user",
-      "type: #password | secret_sauce",
-      "click: #login-button",
-      "assert_url_contains: inventory",
-      "click: #item_4_title_link",
-      "assert_text: #item_4_title | Sauce Labs Backpack",
-      "click: #react-burger-menu-btn",
-      "click: #about_sidebar_link",
-      "assert_url_contains: about"
-    ],
-    "expected": "User can filter by category and navigate to about page",
-    "actual": "The test failed due to multiple timeouts and failed assertions throughout the test case execution",
-    "screenshot": "reports/screenshots/tc005_result.png"
-  },
-  {
-    "bug_id": "BUG-006",
-    "title": "Timeouts and Element Locator Issues",
-    "severity": "critical",
-    "test_case": "TC006",
-    "steps_to_reproduce": [
-      "navigate: https://qagent-iota.vercel.app/",
-      "type: #user-name | standard_user",
-      "type: #password | secret_sauce",
-      "click: #login-button",
-      "assert_url_contains: inventory",
-      "click: #add-to-cart-sauce-labs-backpack",
-      "click: #shopping-cart-container",
-      "assert_text: #cart-quantity | 1",
-      "assert_text: #item_0_title | Sauce Labs Backpack"
-    ],
-    "expected": "User can add to cart and view cart",
-    "actual": "The test failed due to timeouts and inability to locate elements on the page, resulting in failed assertions",
-    "screenshot": "reports/screenshots/tc006_result.png"
   }
 ]

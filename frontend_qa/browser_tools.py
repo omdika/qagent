@@ -29,6 +29,7 @@ class BrowserTools:
     def click(self, selector):
         try:
             self.page.click(selector, timeout=5000)
+            self.page.wait_for_timeout(1500)  # tunggu redirect/animasi
             return f"OK: clicked {selector}"
         except Exception as e:
             return f"ERROR click {selector}: {e}"

@@ -3,3 +3,4 @@ groq
 tavily-python
 psycopg2-binary
 playwright
+google-generativeai
