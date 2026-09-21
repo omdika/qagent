@@ -1,3 +1,6 @@
+[![View All Projects](https://img.shields.io/badge/View_All_Projects-omdika.github.io-blue?style=flat-square&logo=github)](https://omdika.github.io/)
+
+
 # QAgent — AI-Powered Frontend QA Automation
 
 QAgent adalah project demo **automation testing platform** untuk aplikasi web frontend. QAgent menggunakan **Playwright** untuk menjalankan browser automation, **Groq AI** sebagai agent yang membuat dan mengevaluasi test case, serta **Tavily** untuk kebutuhan web search berbasis AI.
